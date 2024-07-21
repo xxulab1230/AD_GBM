@@ -8,11 +8,11 @@ library(tidyverse)
 {set.seed(3333) 
   # Create a classification task from the expr2_imp dataset with the target variable "Group"
   task<-as_task_classif(expr2_imp,
-                        target = "Group")#重新构建任务
+                        target = "Group")
   
   split<-partition(task)
   # Define the rows in the test set as the "holdout" group
-  task$set_row_roles(split$test,"holdout")#留三分之一做测试集
+  task$set_row_roles(split$test,"holdout")
   
   # View the feature types in the task
   task$feature_types
