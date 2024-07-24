@@ -186,11 +186,11 @@ library(tidyverse)
  
   #6.LDA
   task_prep <- 
-    po("filter", # 去除高度相关的列
+    po("filter", 
        filter = mlr3filters::flt("find_correlation"), 
        filter.cutoff=0.3) %>>%
-    po("scale", scale = F) %>>% # 中心化
-    po("removeconstants") %>>% # 去掉零方差变量 
+    po("scale", scale = F) %>>% 
+    po("removeconstants") %>>% # 
     po("encode")
   
   
