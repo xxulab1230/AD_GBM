@@ -3,6 +3,88 @@ library(future)
 library(mlr3verse)
 # Load the tidyverse collection of packages for data manipulation and visualization
 library(tidyverse)
+# Load the Boruta package for all-relevant feature selection
+library(Boruta)
+
+# Set a seed for reproducibility of results
+set.seed(123)
+
+# Perform Boruta feature selection
+# The function takes the formula Group ~ . (all other variables as predictors for Group),
+# data is the input dataset with NA values omitted,
+# pValue is the significance level for attribute evaluation,
+# mcAdj accounts for multiple comparisons,
+# doTrace is for tracing the progress of the algorithm
+boruta_output <- Boruta(Group ~ ., data=na.omit(expr), pValue = 0.01, mcAdj = TRUE, doTrace = 2)
+
+# Summarize the results of the Boruta algorithm
+summary(boruta_output)
+
+# Extract the importance history from the Boruta output
+importance <- boruta_output$ImpHistory
+importance
+
+# Create a PDF file to plot variable importance
+pdf(paste0("./boruta-imp.pdf"), height = 10, width = 10)
+
+# Plot the variable importance with labels rotated 90 degrees and a custom title
+plot(boruta_output, las = 2, xlab = '', main = 'Variable Importance')
+
+# Close the PDF device
+dev.off()
+
+# Save the importance history to a CSV file
+write.csv(importance, file = paste0('./borutavip-RUSH-inter.csv'), row.names = FALSE)
+
+# Apply a function to fix tentative attributes
+bor <- TentativeRoughFix(boruta_output)
+print(bor)
+
+# Display final feature engineering results
+attStats(bor)
+
+# Save the attribute statistics to a CSV file
+write.csv(attStats(bor), file = './borutavip-inter-attStats.csv')
+
+# Get the formula of all non-rejected attributes (important features)
+getNonRejectedFormula(bor)
+
+# Define a custom function to process and display Boruta importance
+boruta.imp <- function(x){
+  # Melt the importance history and remove NA values
+  imp <- reshape2::melt(x$ImpHistory, na.rm=T)[,-1]
+  colnames(imp) <- c("Variable","Importance")
+  imp <- imp[is.finite(imp$Importance),]
+  
+  # Create a data frame of variables and their final decisions
+  variableGrp <- data.frame(Variable=names(x$finalDecision), 
+                            finalDecision=x$finalDecision)
+  
+  # Add rows for shadow attributes
+  showGrp <- data.frame(Variable=c("shadowMax", "shadowMean", "shadowMin"),
+                        finalDecision=c("shadowMax", "shadowMean", "shadowMin"))
+  
+  # Combine the importance data with variable groups
+  variableGrp <- rbind(variableGrp, showGrp)
+  
+  boruta.variable.imp <- merge(imp, variableGrp, all.x=T)
+  
+  # Calculate median importance and sort variables
+  sortedVariable <- boruta.variable.imp %>% group_by(Variable) %>%
+    summarise(median=median(Importance)) %>% arrange(median)
+  sortedVariable <- as.vector(sortedVariable$Variable)
+  
+  # Reorder the factors in the variable column according to the sorted importance
+  boruta.variable.imp$Variable <- factor(boruta.variable.imp$Variable, levels=sortedVariable)
+  
+  # Return the processed importance data invisibly
+  invisible(boruta.variable.imp)
+}
+
+# Apply the custom function to the Boruta output and store the result
+boruta.variable.imp <- boruta.imp(boruta_output)
+head(boruta.variable.imp)  # Display the first few rows of the processed importance data
+
 
 # # Set the seed for random number generation to ensure reproducibility
 {set.seed(3333) 
